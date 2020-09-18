@@ -10,6 +10,10 @@ SP = 0b0111 # 7
 CALL = 0b01010000 # Call
 RET = 0b00010001 # RET
 ADD = 0b10100000 # ADD
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 class CPU:
     """Main CPU class."""
     def __init__(self):
@@ -29,6 +33,16 @@ class CPU:
         self.branchtable[CALL] = self.call_instruction
         self.branchtable[RET] = self.ret_instruction
         self.branchtable[ADD] = self.add_instruction
+        self.branchtable[CMP] = self.cmp_instruction
+        self.branchtable[JMP] = self.jmp_instruction
+        self.branchtable[JEQ] = self.jeq_instruction
+        self.branchtable[JNE] = self.jne_instruction
+        # Flags
+        self.E = None
+        self.L = None
+        self.G = None
+
+
     # Step 2: RAM methods (ram_read & ram_write)
     def ram_read(self, address):
         return self.ram[address]
@@ -127,6 +141,34 @@ class CPU:
         #elif op == "SUB": etc
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "AND":
+            self.reg[reg_a] &= self.reg[reg_b]
+        elif op == "OR": 
+            self.reg[reg_a] |= self.reg[reg_b]
+        elif op == "XOR":
+            self.reg[reg_a] ^= self.reg[reg_b]
+        elif op == "NOT":
+            self.reg[reg_a] =~ self.reg[reg_b]
+        elif op == "SHL":
+            self.reg[reg_a] <<= self.reg[reg_b]
+        elif op == "SHR":
+            self.reg[reg_a] >>= self.reg[reg_b]   
+        elif op == "MOD":
+            self.reg[reg_a] %= self.reg[reg_b] 
+        elif op == "CMP":
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.E = 1
+                self.L = 0
+                self.G = 0
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.E = 0
+                self.L = 1
+                self.G = 0        
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.E = 0
+                self.L = 0
+                self.G = 1
+    
         else:
             raise Exception("Unsupported ALU operation")
     def trace(self):
@@ -210,3 +252,28 @@ class CPU:
         # increment SP
         self.reg[SP] += 1
         self.pc += 2 
+    
+    def cmp_instruction(self):
+        reg_a = self.ram[self.pc + 1]
+        reg_b = self.ram[self.pc +2]
+        # Using ALU per instruction to check compare + set flag values
+        self.alu("CMP", reg_a, reg_b)
+        # Increment pc 
+        self.pc += 3 
+    def jmp_instruction(self):
+        reg_num = self.ram[self.pc +1]
+        self.pc = self.reg[reg_num]
+
+    def jeq_instruction(self):
+        if self.E:
+            self.jmp_instruction()
+        else:
+            # increment to next instruction
+            self.pc += 2
+
+    def jne_instruction(self):
+        if not self.E:
+            self.jmp_instruction()
+        else:
+            # increment to next instruction
+            self.pc +=2
